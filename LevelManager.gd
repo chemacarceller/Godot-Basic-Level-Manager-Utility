@@ -7,8 +7,34 @@ extends Node
 var actual_level : Node3D = null
 
 func _ready() -> void :
-	if MyLogger : MyLogger.info(name + " Instantiated ... ","levelManager.gd",8, true)
+	if get_node_or_null("/root/MyLogger") != null : MyLogger.info(name + " Instantiated ... ","levelManager.gd",8, true)
 	else : print("[INFO]",name + " Instantiated ... ", 'LevelManager.gd(8)')
+
+	# List of required singletons
+	var required_globals = ["GameInstance"]
+	var missing_globals = []
+
+	for global_name in required_globals:
+		if not is_instance_valid(get_node_or_null("/root/" + global_name)):
+			missing_globals.append(global_name)
+
+	# If anyone is missing, we abort the mission
+	if missing_globals.size() > 0 :
+
+		var error_msg = "CRITICAL ERROR: Missing Autoloads : " + str(missing_globals)
+		
+		if get_node_or_null("/root/MyLogger") != null : MyLogger.error(error_msg, 'LoadingScreen.gd', 83, true)
+		else : printerr("[ERROR] ", error_msg)
+
+		# Desactivamos el bucle principal
+		set_process(false) 
+
+		# If we are in debug mode, we might want to see the error.
+		# If it's the final game, it's better to close it than to leave the screen frozen.
+		get_tree().quit()
+		return
+
+
 	_initialize_initial_level()
 
 func _initialize_initial_level() -> void:
@@ -38,13 +64,13 @@ func _initialize_initial_level() -> void:
 var _is_loading : bool = false
 
 func _handle_fatal_error(error_message: String):
-	if MyLogger : MyLogger.error(error_message, 'LevelManager.gd', 38, true)
-	else : print("[ERROR]", error_message, 'LevelManager.gd(38)')
+	if get_node_or_null("/root/MyLogger") != null : MyLogger.error(error_message, 'LevelManager.gd', 38, true)
+	else : printerr("[ERROR]", error_message, 'LevelManager.gd(38)')
 	if GameInstance._quit_gracefully : GameInstance._quit_gracefully()
 	else : get_tree().quit()
 
 func _warmup_prefabs(target_node: Node):
-	if MyLogger : MyLogger.info("Starting GPU Warmup for prefabs...", "LevelManager.gd", 42, true)
+	if get_node_or_null("/root/MyLogger") != null : MyLogger.info("Starting GPU Warmup for prefabs...", "LevelManager.gd", 42, true)
 	else : print("[INFO]", "Starting GPU Warmup for prefabs...", 'LevelManager.gd(42)')
 	if GameInstance._prefabs :
 		for key in GameInstance._prefabs:
@@ -56,7 +82,7 @@ func _warmup_prefabs(target_node: Node):
 func _switch_scene(next_level: Node3D):
 	
 	# From the event manager, all references to the previous level must be removed.
-	EventBus._reset()
+	if get_node_or_null("/root/EventBus") != null : EventBus._reset()
 
 	# The prefabs are removed from its parent
 	if GameInstance._prefabs :
@@ -73,7 +99,7 @@ func _switch_scene(next_level: Node3D):
 	if is_instance_valid(actual_level) : actual_level.queue_free()
 	actual_level = next_level
 
-	if MyLogger : MyLogger.info("Level changed successfully: " + next_level.name, 'LevelManager.gd', 68, true)
+	if get_node_or_null("/root/MyLogger") != null : MyLogger.info("Level changed successfully: " + next_level.name, 'LevelManager.gd', 68, true)
 	else : print("[INFO]", "Level changed successfully: " + next_level.name, 'LevelManager.gd(68)')
 
 
@@ -109,8 +135,8 @@ func load_new_level(scene_path: String):
 	next_level.visible = false
 
 	if actual_level and actual_level.name == next_level.name :
-		if MyLogger : MyLogger.warn("Attempted to load the same level: " + next_level.name, 'LevelManager.gd', 103, true)
-		else : print("[WARN]", "Attempted to load the same level: " + next_level.name, 'LevelManager.gd(103)')
+		if get_node_or_null("/root/MyLogger") != null : MyLogger.warn("Attempted to load the same level: " + next_level.name, 'LevelManager.gd', 103, true)
+		else : print("[WARNING]", "Attempted to load the same level: " + next_level.name, 'LevelManager.gd(103)')
 		next_level.free()
 		_is_loading = false
 		return
@@ -126,5 +152,5 @@ func load_new_level(scene_path: String):
 # How to handle a save quiting in the LevelManager
 func _notification(what) : 
 	if what == NOTIFICATION_WM_CLOSE_REQUEST : 
-		if MyLogger : MyLogger.info("Exiting LevelManager ...", 'LevelManager.gd', 123, true)
+		if get_node_or_null("/root/MyLogger") != null : MyLogger.info("Exiting LevelManager ...", 'LevelManager.gd', 123, true)
 		else : print("[INFO]", "Exiting LevelManager ...", 'LevelManager.gd(123)')
