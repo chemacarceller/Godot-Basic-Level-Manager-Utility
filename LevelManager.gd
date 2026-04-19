@@ -1,10 +1,14 @@
 extends Node
+# This class is used for changing the game scene (level)
+# This class optionally uses a Global object called MyLogger, which must provide the methods info(), warn(), and error() to manage log storage; otherwise, the logs are displayed directly in the console.
+# In the case of having a Global instance called GameInstance that implements the GameInstance._quit_gracefully() method for controlled application closure, it would be used instead of an uncontrolled closure
+# In the case of having a Global called GameInstance with an array GameInstance._prefabs, they would be reassigned to the new level
 
 var actual_level : Node3D = null
 
 func _ready() -> void :
-
-	MyLogger.info(name + " Instantiated ... ","levelManager.gd",6, true)
+	if MyLogger : MyLogger.info(name + " Instantiated ... ","levelManager.gd",8, true)
+	else : print("[INFO]",name + " Instantiated ... ", 'LevelManager.gd(8)')
 	_initialize_initial_level()
 
 func _initialize_initial_level() -> void:
@@ -20,12 +24,6 @@ func _initialize_initial_level() -> void:
 	while not exiting :
 		for theNode in get_tree().root.get_children() :
 
-			# If there is no LoadingScreen used, the characters must be loaded in GameInstance
-			# And the timer must be started
-			if node_name != 'LoadingScreen' :
-				GameInstance.load_characters()
-				GameInstance.start_game_timer()
-
 			# We wait for the scene node to be ready
 			if theNode.name == node_name :
 				if not theNode.is_node_ready() :
@@ -39,19 +37,21 @@ func _initialize_initial_level() -> void:
 
 var _is_loading : bool = false
 
-func _handle_fatal_error(path: String):
-	MyLogger.error("Level not found: " + path, 'LevelManager.gd')
-	GameInstance._quit_gracefully()
-	for i in 60 : await get_tree().process_frame
-	get_tree().quit(3)
+func _handle_fatal_error(error_message: String):
+	if MyLogger : MyLogger.error(error_message, 'LevelManager.gd', 38, true)
+	else : print("[ERROR]", error_message, 'LevelManager.gd(38)')
+	if GameInstance._quit_gracefully : GameInstance._quit_gracefully()
+	else : get_tree().quit()
 
 func _warmup_prefabs(target_node: Node):
-	MyLogger.info("Starting GPU Warmup for prefabs...", "LevelManager.gd")
-	for key in GameInstance._prefabs:
-		var prefab = GameInstance._prefabs[key]
-		if is_instance_valid(prefab) :
-			if prefab.get_parent(): prefab.reparent(target_node)
-			else: target_node.add_child(prefab)
+	if MyLogger : MyLogger.info("Starting GPU Warmup for prefabs...", "LevelManager.gd", 42, true)
+	else : print("[INFO]", "Starting GPU Warmup for prefabs...", 'LevelManager.gd(42)')
+	if GameInstance._prefabs :
+		for key in GameInstance._prefabs:
+			var prefab = GameInstance._prefabs[key]
+			if is_instance_valid(prefab) :
+				if prefab.get_parent(): prefab.reparent(target_node)
+				else: target_node.add_child(prefab)
 
 func _switch_scene(next_level: Node3D):
 	
@@ -59,10 +59,11 @@ func _switch_scene(next_level: Node3D):
 	EventBus._reset()
 
 	# The prefabs are removed from its parent
-	for key in GameInstance._prefabs:
-		var prefab = GameInstance._prefabs[key]
-		if is_instance_valid(prefab) and prefab.get_parent() : 
-			prefab.get_parent().remove_child(prefab)
+	if GameInstance._prefabs :
+		for key in GameInstance._prefabs:
+			var prefab = GameInstance._prefabs[key]
+			if is_instance_valid(prefab) and prefab.get_parent() : 
+				prefab.get_parent().remove_child(prefab)
 
 	# Add new level to root
 	get_tree().root.add_child(next_level)
@@ -70,10 +71,11 @@ func _switch_scene(next_level: Node3D):
 
 	# Release old level
 	if is_instance_valid(actual_level) : actual_level.queue_free()
-
 	actual_level = next_level
 
-	MyLogger.info("Level changed successfully: " + next_level.name, 'LevelManager.gd')
+	if MyLogger : MyLogger.info("Level changed successfully: " + next_level.name, 'LevelManager.gd', 68, true)
+	else : print("[INFO]", "Level changed successfully: " + next_level.name, 'LevelManager.gd(68)')
+
 
 
 # Each time a level changed is requested
@@ -83,7 +85,7 @@ func load_new_level(scene_path: String):
 	else : _is_loading = true
 
 	if not ResourceLoader.exists(scene_path): 
-		_handle_fatal_error(scene_path)
+		_handle_fatal_error("Level not found : " + scene_path)
 		return
 	
 	ResourceLoader.load_threaded_request(scene_path, "", true)
@@ -107,7 +109,8 @@ func load_new_level(scene_path: String):
 	next_level.visible = false
 
 	if actual_level and actual_level.name == next_level.name :
-		MyLogger.warn("Attempted to load the same level: " + next_level.name, 'LevelManager.gd')
+		if MyLogger : MyLogger.warn("Attempted to load the same level: " + next_level.name, 'LevelManager.gd', 103, true)
+		else : print("[WARN]", "Attempted to load the same level: " + next_level.name, 'LevelManager.gd(103)')
 		next_level.free()
 		_is_loading = false
 		return
@@ -116,13 +119,12 @@ func load_new_level(scene_path: String):
 	_warmup_prefabs(next_level)
 	_switch_scene(next_level)
 
-	# Showing the hud count message without incrmenting a second
-	GameInstance._on_timer_timeout(false)
-
 	_is_loading = false
+
 
 
 # How to handle a save quiting in the LevelManager
 func _notification(what) : 
 	if what == NOTIFICATION_WM_CLOSE_REQUEST : 
-		MyLogger.info("Exiting LevelManager ...", 'LevelManager.gd', 40, true)
+		if MyLogger : MyLogger.info("Exiting LevelManager ...", 'LevelManager.gd', 123, true)
+		else : print("[INFO]", "Exiting LevelManager ...", 'LevelManager.gd(123)')
