@@ -8,9 +8,9 @@ extends Node
 var actual_level : Node3D = null
 var _is_loading : bool = false
 
-func _ready() -> void :
+func _enter_tree() -> void : MyLogger.info(name + " Instantiated ... ","levelManager.gd",13, true)
 
-	MyLogger.info(name + " Instantiated ... ","levelManager.gd",13, true)
+func _ready() -> void :
 
 	# List of required singletons
 	var required_globals = ["GameInstance"]
@@ -36,37 +36,35 @@ func _ready() -> void :
 		return
 
 	# If everything is correct, let's begin
+	# I need to know what the initial scene (the node) is.
 	_initialize_initial_level()
 
 
-func _initialize_initial_level() -> void:
+func _initialize_initial_level() -> void :
 	
 	# The LevelManager must wait until the scene set as the default scene is ready 
 	# to set as the default actual_level
-	var exiting : bool = false
 	
 	# Looking for the node to wait until is ready
 	var path : String = ResourceUID.get_id_path(ResourceUID.text_to_id(ProjectSettings.get_setting("application/run/main_scene")))
 	var resource_scene : PackedScene = load(path) as PackedScene
-	var scene_state = resource_scene.get_state()
-	var node_name = scene_state.get_node_name(0)
+	var scene_state : SceneState = resource_scene.get_state()
+	var node_name : String = scene_state.get_node_name(0)
 	
-	while not exiting :
+	while true :
 		for theNode in get_tree().root.get_children() :
-
 			# We wait for the scene node to be ready
 			if theNode.name == node_name :
 				if not theNode.is_node_ready() :
 					await theNode.ready
-					exiting = true
-					break
-		if not exiting: await get_tree().process_frame
 
-	# Setting the actual level taken from the projet settings
-	if actual_level == null : actual_level = get_tree().current_scene
+				# Setting the actual level taken from the projet settings
+				if actual_level == null : actual_level = get_tree().current_scene
 
-	MyLogger.info(" Set the First Level Loaded as " + str(actual_level),"LevelManager.gd",68, true)
+				MyLogger.info(" Set the First Level Loaded as " + str(actual_level),"LevelManager.gd",68, true)
 
+				return
+		await get_tree().process_frame
 
 func _handle_fatal_error(error_message: String):
 	MyLogger.error(error_message, 'LevelManager.gd', 72, true)
