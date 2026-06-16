@@ -1,21 +1,24 @@
 extends Node
 # This class is used for changing the game scene (level)
-# This class optionally uses a Global object called MyLogger, which must provide the methods info(), warn(), and error() to manage log storage; otherwise, the logs are displayed directly in the console.
+# This class optionally uses a Global object called MyLogger, which must provide the methods info(), warn(), and error() to manage log storage; 
+# otherwise, the logs are displayed directly in the console via the built-in print method
 # In the case of having a Global instance called GameInstance that implements the GameInstance._quit_gracefully() method for controlled application closure, it would be used instead of an uncontrolled closure
 # In the case of having a Global called GameInstance with an array GameInstance._prefabs, they would be reassigned to the new level
 
 var actual_level : Node3D = null
+var _is_loading : bool = false
 
 func _ready() -> void :
-	if get_node_or_null("/root/MyLogger") != null : MyLogger.info(name + " Instantiated ... ","levelManager.gd",8, true)
-	else : print("[INFO]",name + " Instantiated ... ", 'LevelManager.gd(8)')
+
+	MyLogger.info(name + " Instantiated ... ","levelManager.gd",13, true)
 
 	# List of required singletons
 	var required_globals = ["GameInstance"]
 	var missing_globals = []
-
-	for global_name in required_globals:
-		if not is_instance_valid(get_node_or_null("/root/" + global_name)):
+	
+	# We checked that all the necessary global classes are actually available
+	for global_name in required_globals : 
+		if not is_instance_valid(get_node_or_null("/root/" + global_name)) : 
 			missing_globals.append(global_name)
 
 	# If anyone is missing, we abort the mission
@@ -23,24 +26,25 @@ func _ready() -> void :
 
 		var error_msg = "CRITICAL ERROR: Missing Autoloads : " + str(missing_globals)
 		
-		if get_node_or_null("/root/MyLogger") != null : MyLogger.error(error_msg, 'LoadingScreen.gd', 83, true)
-		else : printerr("[ERROR] ", error_msg)
+		MyLogger.error(error_msg, 'LoadingScreen.gd', 29, true)
 
-		# Desactivamos el bucle principal
+		# Completely disable the _process(delta) method on the node where you execute it
 		set_process(false) 
 
-		# If we are in debug mode, we might want to see the error.
-		# If it's the final game, it's better to close it than to leave the screen frozen.
+		# Close the game completely and make sure the script stops running immediately at that point.
 		get_tree().quit()
 		return
 
-
+	# If everything is correct, let's begin
 	_initialize_initial_level()
+
 
 func _initialize_initial_level() -> void:
 	
-	# The LevelManager must wait until the LoadingScreen or or the scene set as the default scene is ready to set as the default actual_level
+	# The LevelManager must wait until the scene set as the default scene is ready 
+	# to set as the default actual_level
 	var exiting : bool = false
+	
 	# Looking for the node to wait until is ready
 	var path : String = ResourceUID.get_id_path(ResourceUID.text_to_id(ProjectSettings.get_setting("application/run/main_scene")))
 	var resource_scene : PackedScene = load(path) as PackedScene
@@ -61,17 +65,17 @@ func _initialize_initial_level() -> void:
 	# Setting the actual level taken from the projet settings
 	if actual_level == null : actual_level = get_tree().current_scene
 
-var _is_loading : bool = false
+	MyLogger.info(" Set the First Level Loaded as " + str(actual_level),"LevelManager.gd",68, true)
+
 
 func _handle_fatal_error(error_message: String):
-	if get_node_or_null("/root/MyLogger") != null : MyLogger.error(error_message, 'LevelManager.gd', 38, true)
-	else : printerr("[ERROR]", error_message, 'LevelManager.gd(38)')
+	MyLogger.error(error_message, 'LevelManager.gd', 72, true)
 	if GameInstance._quit_gracefully : GameInstance._quit_gracefully()
 	else : get_tree().quit()
 
 func _warmup_prefabs(target_node: Node):
-	if get_node_or_null("/root/MyLogger") != null : MyLogger.info("Starting GPU Warmup for prefabs...", "LevelManager.gd", 42, true)
-	else : print("[INFO]", "Starting GPU Warmup for prefabs...", 'LevelManager.gd(42)')
+	MyLogger.info("Starting GPU Warmup for prefabs...", "LevelManager.gd", 77, true)
+
 	if GameInstance._prefabs :
 		for key in GameInstance._prefabs:
 			var prefab = GameInstance._prefabs[key]
@@ -99,8 +103,7 @@ func _switch_scene(next_level: Node3D):
 	if is_instance_valid(actual_level) : actual_level.queue_free()
 	actual_level = next_level
 
-	if get_node_or_null("/root/MyLogger") != null : MyLogger.info("Level changed successfully: " + next_level.name, 'LevelManager.gd', 68, true)
-	else : print("[INFO]", "Level changed successfully: " + next_level.name, 'LevelManager.gd(68)')
+	MyLogger.info("Level changed successfully: " + next_level.name, 'LevelManager.gd', 106, true)
 
 
 
@@ -135,8 +138,8 @@ func load_new_level(scene_path: String):
 	next_level.visible = false
 
 	if actual_level and actual_level.name == next_level.name :
-		if get_node_or_null("/root/MyLogger") != null : MyLogger.warn("Attempted to load the same level: " + next_level.name, 'LevelManager.gd', 103, true)
-		else : print("[WARNING]", "Attempted to load the same level: " + next_level.name, 'LevelManager.gd(103)')
+		MyLogger.warn("Attempted to load the same level: " + next_level.name, 'LevelManager.gd', 141, true)
+
 		next_level.free()
 		_is_loading = false
 		return
@@ -152,5 +155,4 @@ func load_new_level(scene_path: String):
 # How to handle a save quiting in the LevelManager
 func _notification(what) : 
 	if what == NOTIFICATION_WM_CLOSE_REQUEST : 
-		if get_node_or_null("/root/MyLogger") != null : MyLogger.info("Exiting LevelManager ...", 'LevelManager.gd', 123, true)
-		else : print("[INFO]", "Exiting LevelManager ...", 'LevelManager.gd(123)')
+		MyLogger.info("Exiting LevelManager ...", 'LevelManager.gd', 158, true)
